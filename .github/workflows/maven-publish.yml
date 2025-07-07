@@ -36,3 +36,15 @@ jobs:
 
       # - name: Deploy to GCP (Cloud Run, GKE, etc.)
       #   run: echo "Ajoute ici ton étape de déploiement quand tu seras prêt"
+      - name: Generate fat jar
+        run: mvn clean spring-boot:repackage -DskipTests=true
+
+      - name: Upload jar to GCS
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
+        run: |
+          echo "${GOOGLE_APPLICATION_CREDENTIALS}" > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project sonneurs-juvi-dev
+          gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
+
