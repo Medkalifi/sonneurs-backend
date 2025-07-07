@@ -41,9 +41,9 @@ jobs:
 
       - name: Upload jar to GCS
         env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
-          echo "${GOOGLE_APPLICATION_CREDENTIALS}" > gcp-key.json
+          echo "${GCP_CREDENTIALS}" | base64 --decode  > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project sonneurs-juvi-dev
           gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
