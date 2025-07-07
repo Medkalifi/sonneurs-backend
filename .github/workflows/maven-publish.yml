@@ -37,7 +37,7 @@ jobs:
       # - name: Deploy to GCP (Cloud Run, GKE, etc.)
       #   run: echo "Ajoute ici ton étape de déploiement quand tu seras prêt"
       - name: Generate fat jar
-        run: mvn clean spring-boot:repackage -DskipTests=true
+        run: mvn clean package spring-boot:repackage -DskipTests=true
 
       - name: Upload jar to GCS
         env:
