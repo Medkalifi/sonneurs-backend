@@ -41,7 +41,7 @@ jobs:
 
       - name: Upload jar to GCS
         env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS_JSON }}
         run: |
           echo "${GOOGLE_APPLICATION_CREDENTIALS}" > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
