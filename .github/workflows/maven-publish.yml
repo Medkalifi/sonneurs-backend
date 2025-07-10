@@ -54,13 +54,9 @@ jobs:
          
       - name: Deploy to Cloud Run
         run: |
-         gcloud run deploy springboot-backend \
-         --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
-         --platform=managed \
-         --region=us-central1 \
-         --allow-unauthenticated \
-         --set-env-vars=\
-              DB_NAME=sonneursdb\
-              DB_USERNAME=svc-app-son-user\
-              DB_PASSWORD=${{ secrets.DB_PASSWORD }}\
-              INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
+          gcloud run deploy springboot-backend \
+            --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
+            --platform=managed \
+            --region=us-central1 \
+            --allow-unauthenticated \
+            --set-env-vars="DB_NAME=sonneursdb,DB_USERNAME=svc-app-son-user,DB_PASSWORD=${{ secrets.DB_PASSWORD }},INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres"
