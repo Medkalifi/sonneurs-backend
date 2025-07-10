@@ -35,7 +35,6 @@ jobs:
         run: mvn clean install -DskipTests=true
 
       # - name: Deploy to GCP (Cloud Run, GKE, etc.)
-      #   run: echo "Ajoute ici ton étape de déploiement quand tu seras prêt"
       - name: Generate fat jar
         run: mvn clean package spring-boot:repackage -DskipTests=true
 
@@ -60,4 +59,6 @@ jobs:
          --platform=managed \
          --region=us-central1 \
          --allow-unauthenticated \
-         --set-env-vars=DB_HOST=34.122.91.130,DB_PORT=5432,DB_NAME=sonneursdb,DB_USERNAME=svc-app-son-user,DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+         --service-account=springboot-app-sa@sonneurs-juvi-dev.iam.gserviceaccount.com \
+         --add-cloudsql-instances=sonneurs-juvi-dev:us-central1:instance-postgres \
+         --set-env-vars=INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres,DB_PASSWORD=${{ secrets.DB_PASSWORD }}

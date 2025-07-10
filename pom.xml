@@ -64,10 +64,24 @@
 <!--     <artifactId>spring-cloud-gcp-starter-data-firestore</artifactId> -->
 <!--     <version>3.5.0</version> vérifie la dernière version -->
 <!-- </dependency> -->
+
+<dependency>
+  <groupId>com.google.cloud.sql</groupId>
+  <artifactId>postgres-socket-factory</artifactId>
+  <version>1.13.1</version>
+</dependency>
+<!-- la dépendance Cloud SQL Auth Proxy pour la cnx bdd -->
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-mail</artifactId>
     </dependency>
+    <!-- la dépendance dépendance Cloud SQL Socket Factory -->
+    <dependency>
+  <groupId>com.google.cloud.sql</groupId>
+  <artifactId>postgres-socket-factory</artifactId>
+  <version>1.13.1</version>
+</dependency>
+    
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
