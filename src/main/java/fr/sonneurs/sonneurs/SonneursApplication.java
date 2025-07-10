@@ -7,7 +7,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class SonneursApplication {
 
 	public static void main(String[] args) {
-		SpringApplication.run(SonneursApplication.class, args);
+	    System.out.println("DB_NAME: " + System.getenv("DB_NAME"));
+	    SpringApplication.run(SonneursApplication.class, args);
+	
+		
+		
 	}
 
 }
