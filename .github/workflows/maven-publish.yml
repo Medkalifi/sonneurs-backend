@@ -71,4 +71,4 @@ jobs:
           echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project sonneurs-juvi-dev
-          gcloud app deploy --quiet --verbosity=info app.yaml
+          gcloud app deploy --quiet --verbosity=info app.yml
