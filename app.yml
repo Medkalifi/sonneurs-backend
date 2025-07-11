@@ -1,12 +1,21 @@
 runtime: custom
 env: flex
 service: backend-sonneurs
+
 automatic_scaling:
   min_num_instances: 1
   max_num_instances: 2
+
 resources:
   cpu: 1
   memory_gb: 1
   disk_size_gb: 10
+
+env_variables:
+  DB_NAME: sonneursdb
+  DB_USERNAME: svc-app-son-user
+  DB_PASSWORD: YOUR_PASSWORD  # remplace par une valeur temporaire ou utilise Secret Manager
+  INSTANCE_CONNECTION_NAME: sonneurs-juvi-dev:us-central1:instance-postgres
+
 beta_settings:
   cloud_sql_instances: sonneurs-juvi-dev:us-central1:instance-postgres
