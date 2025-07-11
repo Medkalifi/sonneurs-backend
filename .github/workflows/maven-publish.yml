@@ -52,15 +52,23 @@ jobs:
          docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
          docker push us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
          
-      - name: Deploy to Cloud Run
+  #   - name: Deploy to Cloud Run
+  #     run: |
+  #       gcloud run deploy springboot-backend \
+  #         --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
+  #         --platform=managed \
+  #         --region=us-central1 \
+  #         --allow-unauthenticated \
+  #         --timeout=600s \
+  #         --set-env-vars DB_NAME=sonneursdb \
+  #         --set-env-vars DB_USERNAME=svc-app-son-user \
+  #         --set-env-vars DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+  #         --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
+      - name: Deploy to App Engine Flexible
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
-          gcloud run deploy springboot-backend \
-            --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
-            --platform=managed \
-            --region=us-central1 \
-            --allow-unauthenticated \
-            --timeout=600s \
-            --set-env-vars DB_NAME=sonneursdb \
-            --set-env-vars DB_USERNAME=svc-app-son-user \
-            --set-env-vars DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-            --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project sonneurs-juvi-dev
+          gcloud app deploy --quiet --verbosity=info app.yaml
