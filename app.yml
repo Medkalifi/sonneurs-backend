@@ -1,21 +1,17 @@
 runtime: custom
 env: flex
-service: backend-sonneurs
-
+service: default  # <-- obligatoire pour le 1er déploiement App Engine après renomme app somnnerus
 automatic_scaling:
   min_num_instances: 1
   max_num_instances: 2
-
 resources:
   cpu: 1
   memory_gb: 1
   disk_size_gb: 10
-
+beta_settings:
+  cloud_sql_instances: sonneurs-juvi-dev:us-central1:instance-postgres
 env_variables:
   DB_NAME: sonneursdb
   DB_USERNAME: svc-app-son-user
-  DB_PASSWORD: YOUR_PASSWORD  # remplace par une valeur temporaire ou utilise Secret Manager
+  DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
   INSTANCE_CONNECTION_NAME: sonneurs-juvi-dev:us-central1:instance-postgres
-
-beta_settings:
-  cloud_sql_instances: sonneurs-juvi-dev:us-central1:instance-postgres
