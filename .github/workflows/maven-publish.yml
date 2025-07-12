@@ -74,8 +74,6 @@ jobs:
           
       - name: Debug App Engine files
         run: |
-          ls -al
-          ls -al target
           cat app.yaml
           cat Dockerfile
 
