@@ -71,6 +71,13 @@ jobs:
           export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
           export INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
           envsubst < app.template.yml > app.yaml
+          
+      - name: Debug App Engine files
+        run: |
+          ls -al
+          ls -al target
+          cat app.yaml
+          cat Dockerfile
 
       - name: Deploy to App Engine Flexible
         env:
@@ -82,9 +89,4 @@ jobs:
           gcloud config set app/cloud_build_timeout 1600
           gcloud app deploy --quiet --verbosity=info app.yaml
 
-      - name: Debug App Engine files
-        run: |
-          ls -al
-          ls -al target
-          cat app.yaml
-          cat Dockerfile
+
