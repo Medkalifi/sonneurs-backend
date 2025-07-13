@@ -1,42 +1,34 @@
-name: Deploy Backend
+name: Deploy to Cloud Run
 
 on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: "Choisir l'environnement de déploiement"
-        required: true
-        default: dev
-        type: choice
-        options: [dev, prod]
-      target:
-        description: "Choisir le service de déploiement"
-        required: true
-        default: cloudrun
-        type: choice
-        options: [cloudrun, appengine, vm, gke]
+  repository_dispatch:
+    types: [deploy-cloudrun]
+
+env:
+  GCP_PROJECT: sonneurs-juvi-dev
+  REGION: us-central1
+  SERVICE_NAME: springboot-backend
+  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo (optional, if needed)
         uses: actions/checkout@v4
 
-      - name: Load environment variables
+      - name: Authenticate to Google Cloud
         run: |
-          cp .github/env.${{ github.event.inputs.environment }} .env
-          echo "Environnement sélectionné : ${{ github.event.inputs.environment }}"
-          cat .env
-          export $(grep -v '^#' .env | xargs)
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
 
-      - name: Dispatch to selected target
-        uses: peter-evans/repository-dispatch@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          event-type: deploy-${{ github.event.inputs.target }}
-          client-payload: |
-            {
-              "environment": "${{ github.event.inputs.environment }}"
-            }
+      - name: Deploy to Cloud Run
+        run: |
+          echo "Deploying image: ${{ github.event.client_payload.image_uri }}"
+          gcloud run deploy $SERVICE_NAME \
+            --image=${{ github.event.client_payload.image_uri }} \
+            --platform=managed \
+            --region=$REGION \
+            --allow-unauthenticated

@@ -9,6 +9,14 @@ on:
     branches:
       - main
 
+env:
+  GCP_PROJECT: sonneurs-juvi-dev
+  REGION: us-central1
+  REPO_NAME: backend-repo
+  IMAGE_NAME: springboot-backend
+  GCS_BUCKET: sonneurs-docs-2025
+  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -34,38 +42,33 @@ jobs:
       - name: Build with Maven
         run: mvn clean package spring-boot:repackage -DskipTests=true
 
-      - name: Upload jar to GCS
-        env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-        run: |
-          echo "${GCP_CREDENTIALS}" | base64 --decode  > gcp-key.json
-          gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project sonneurs-juvi-dev
-          gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
-
-      - name: Build & Push Docker Image
-        env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-          GCP_PROJECT: sonneurs-juvi-dev  # à remplacer dynamiquement si besoin
+      - name: Upload JAR to GCS
         run: |
           echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          gcloud config set project $GCP_PROJECT
+          gsutil cp target/*.jar gs://$GCS_BUCKET/jars/
 
-          IMAGE_TAG=us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend:${{ github.sha }}
+      - name: Build & Push Docker Image
+        run: |
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud auth configure-docker ${REGION}-docker.pkg.dev --quiet
+
+          IMAGE_TAG=${REGION}-docker.pkg.dev/${GCP_PROJECT}/${REPO_NAME}/${IMAGE_NAME}:${{ github.sha }}
           echo "Building image: $IMAGE_TAG"
 
           docker build -t $IMAGE_TAG .
           docker push $IMAGE_TAG
 
-
       - name: Trigger deploy
         uses: peter-evans/repository-dispatch@v3
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}  # <- Doit être un PAT avec scope `repo`
+          repository: Medkalifi/sonneurs-backend
           event-type: deploy-cloudrun
           client-payload: |
             {
               "environment": "dev",
-              "image_uri": "us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend:${{ github.sha }}"
+              "image_uri": "${{ env.REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT }}/${{ env.REPO_NAME }}/${{ env.IMAGE_NAME }}:${{ github.sha }}"
             }
