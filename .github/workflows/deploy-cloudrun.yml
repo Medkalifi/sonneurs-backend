@@ -1,6 +1,7 @@
 name: Deploy to Cloud Run
 
 on:
+  # Déploiement manuel via bouton GitHub Actions
   workflow_dispatch:
     inputs:
       environment:
@@ -8,35 +9,56 @@ on:
         type: choice
         options: [dev, prod]
 
+  # Déclenchement automatique depuis un autre workflow (repository_dispatch)
+  repository_dispatch:
+    types: [deploy-cloudrun]
+
+env:
+  REGION: us-central1
+  SERVICE_NAME: springboot-backend
+  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repository (utile si on lit .env)
         uses: actions/checkout@v4
 
       - name: Auth GCP
-        env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
           echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project sonneurs-juvi-${{ github.event.inputs.environment }}
 
-      - name: Load environment variables
-        run: |
-          cp .github/env.${{ github.event.inputs.environment }} .env
-          export $(grep -v '^#' .env | xargs)
-
-      - name: Deploy to Cloud Run
+      - name: Déploiement selon mode
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          gcloud run deploy springboot-backend \
-            --image=us-central1-docker.pkg.dev/sonneurs-juvi-${{ github.event.inputs.environment }}/backend-repo/springboot-backend \
+          # Détection de l'environnement
+          if [[ "${{ github.event_name }}" == "repository_dispatch" ]]; then
+            ENVIRONMENT="${{ github.event.client_payload.environment }}"
+            IMAGE_URI="${{ github.event.client_payload.image_uri }}"
+          else
+            ENVIRONMENT="${{ github.event.inputs.environment }}"
+            IMAGE_URI="us-central1-docker.pkg.dev/sonneurs-juvi-${ENVIRONMENT}/backend-repo/springboot-backend"
+          fi
+
+          echo "ENV: $ENVIRONMENT"
+          echo "IMAGE: $IMAGE_URI"
+
+          # Config GCP
+          gcloud config set project sonneurs-juvi-${ENVIRONMENT}
+
+          # Charger les variables d’environnement
+          cp .github/env.${ENVIRONMENT} .env
+          export $(grep -v '^#' .env | xargs)
+
+          # Déploiement Cloud Run
+          gcloud run deploy $SERVICE_NAME \
+            --image=$IMAGE_URI \
             --platform=managed \
-            --region=us-central1 \
+            --region=$REGION \
             --allow-unauthenticated \
             --timeout=600s \
             --set-env-vars DB_NAME=${DB_NAME} \
