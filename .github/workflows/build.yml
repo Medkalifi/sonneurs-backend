@@ -2,9 +2,12 @@ name: Build and Push Backend
 
 on:
   push:
-    branches: [main, moha-sonneur1]
+    branches:
+      - main
+      - moha-sonneur1
   pull_request:
-    branches: [main]
+    branches:
+      - main
 
 jobs:
   build:
@@ -34,23 +37,27 @@ jobs:
       - name: Upload jar to GCS
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-          PROJECT_ID: sonneurs-juvi-dev
         run: |
-          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          echo "${GCP_CREDENTIALS}" | base64 --decode  > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project $PROJECT_ID
+          gcloud config set project sonneurs-juvi-dev
           gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
 
       - name: Build & Push Docker Image
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
-          IMAGE_TAG: us-central1-docker.pkg.dev/{{PROJECT_ID}}/backend-repo/springboot-backend:${{ github.sha }}
+          GCP_PROJECT: sonneurs-juvi-dev  # à remplacer dynamiquement si besoin
         run: |
           echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+
+          IMAGE_TAG=us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend:${{ github.sha }}
+          echo "Building image: $IMAGE_TAG"
+
           docker build -t $IMAGE_TAG .
           docker push $IMAGE_TAG
+
 
       - name: Trigger deploy
         uses: peter-evans/repository-dispatch@v3
@@ -60,5 +67,5 @@ jobs:
           client-payload: |
             {
               "environment": "dev",
-              "image_uri": "us-central1-docker.pkg.dev/{{PROJECT_ID}}/backend-repo/springboot-backend:${{ github.sha }}"
+              "image_uri": "us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend:${{ github.sha }}"
             }
