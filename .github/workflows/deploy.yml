@@ -1,0 +1,42 @@
+name: Deploy Backend
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: "Choisir l'environnement de déploiement"
+        required: true
+        default: dev
+        type: choice
+        options: [dev, prod]
+      target:
+        description: "Choisir le service de déploiement"
+        required: true
+        default: cloudrun
+        type: choice
+        options: [cloudrun, appengine, vm, gke]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load environment variables
+        run: |
+          cp .github/env.${{ github.event.inputs.environment }} .env
+          echo "Environnement sélectionné : ${{ github.event.inputs.environment }}"
+          cat .env
+          export $(grep -v '^#' .env | xargs)
+
+      - name: Dispatch to selected target
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: deploy-${{ github.event.inputs.target }}
+          client-payload: |
+            {
+              "environment": "${{ github.event.inputs.environment }}"
+            }

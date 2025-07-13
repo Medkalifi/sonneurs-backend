@@ -1,0 +1,64 @@
+name: Build and Push Backend
+
+on:
+  push:
+    branches: [main, moha-sonneur1]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+          restore-keys: |
+            ${{ runner.os }}-maven
+
+      - name: Build with Maven
+        run: mvn clean package spring-boot:repackage -DskipTests=true
+
+      - name: Upload jar to GCS
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+          PROJECT_ID: sonneurs-juvi-dev
+        run: |
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $PROJECT_ID
+          gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
+
+      - name: Build & Push Docker Image
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+          IMAGE_TAG: us-central1-docker.pkg.dev/{{PROJECT_ID}}/backend-repo/springboot-backend:${{ github.sha }}
+        run: |
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build -t $IMAGE_TAG .
+          docker push $IMAGE_TAG
+
+      - name: Trigger deploy
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          event-type: deploy-cloudrun
+          client-payload: |
+            {
+              "environment": "dev",
+              "image_uri": "us-central1-docker.pkg.dev/{{PROJECT_ID}}/backend-repo/springboot-backend:${{ github.sha }}"
+            }

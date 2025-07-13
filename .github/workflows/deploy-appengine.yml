@@ -1,0 +1,46 @@
+name: Deploy to App Engine
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        type: choice
+        options: [dev, prod]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to GCP
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project sonneurs-juvi-${{ github.event.inputs.environment }}
+          - name: Prepare app.yml from template
+          
+        run: |
+          export DB_NAME=sonneursdb
+          export DB_USERNAME=svc-app-son-user
+          export DB_PASSWORD=${{ secrets.DB_PASSWORD }}
+          export INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
+          envsubst < app.template.yml > app.yml
+
+      - name: Deploy to App Engine flexible
+        run: |
+          gcloud config set app/cloud_build_timeout 1600
+          gcloud app deploy --quiet --verbosity=info app.yml
+          
+          
+          
+          
+          
+          
+          
+          
