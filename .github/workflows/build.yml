@@ -89,6 +89,8 @@ jobs:
           envsubst < deploy/app.template.yml > app.yml
           echo "---- app.yml generated ----"
           cat app.yml
+          echo "DB_PASSWORD=$DB_PASSWORD"  # pour debug (temporairement)
+          echo "DB_USER=$DB_USERNAME"  # pour debug (temporairement)
       
 
       - name: Deploy to App Engine
