@@ -60,7 +60,7 @@ jobs:
 
       - name: Generate app.yaml from app.template.yml
         run: |
-          envsubst < deploy/app.template.yml > app.yaml
+          envsubst < deploy/app.template.yml > app.yml
           ls -l app.yml  # Vérifie que le fichier est bien généré
 
       - name: Authenticate to Google Cloud
