@@ -71,7 +71,7 @@ jobs:
           
       - name: Generate app.yml from app.template.yml
         env:
-          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD_DEV }}
           ENVIRONMENT: ${{ env.ENVIRONMENT }}
           DB_NAME: ${{ env.DB_NAME }}
           DB_USERNAME: ${{ env.DB_USERNAME }}
