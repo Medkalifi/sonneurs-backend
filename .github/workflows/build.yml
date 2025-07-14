@@ -34,7 +34,6 @@ jobs:
       - name: Build with Maven
         run: mvn clean install -DskipTests=true
 
-      # - name: Deploy to GCP (Cloud Run, GKE, etc.)
       - name: Generate fat jar
         run: mvn clean package spring-boot:repackage -DskipTests=true
 
@@ -42,49 +41,37 @@ jobs:
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
-          echo "${GCP_CREDENTIALS}" | base64 --decode  > gcp-key.json
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project sonneurs-juvi-dev
           gsutil cp target/*.jar gs://sonneurs-docs-2025/jars/
+
       - name: Build & Push Docker Image to Artifact Registry
         run: |
-         gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-         docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
-         docker push us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
-         
-  #   - name: Deploy to Cloud Run
-  #     run: |
-  #       gcloud run deploy springboot-backend \
-  #         --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
-  #         --platform=managed \
-  #         --region=us-central1 \
-  #         --allow-unauthenticated \
-  #         --timeout=600s \
-  #         --set-env-vars DB_NAME=sonneursdb \
-  #         --set-env-vars DB_USERNAME=svc-app-son-user \
-  #         --set-env-vars DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-  #         --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgre
-  
-      - name: Set up environment variables
-         run: |
-           set -a
-           source deploy/env.dev
-           set +a
-       
-      - name: Generate app.yml from app.template.yml
-         run: |
-           envsubst < deploy/app.template.yml > app.yaml
-           ls -l app.yaml  # pour vérification/debug
-       
-      - name: Authenticate to Google Cloud
-         run: |
-           echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
-           gcloud auth activate-service-account --key-file=gcp-key.json
-           gcloud config set project $GCP_PROJECT
-           gcloud config set app/cloud_build_timeout 1200
-       
-      - name: Deploy to App Engine
-         run: |
-           gcloud app deploy app.yaml --quiet
-       
+          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
+          docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
+          docker push us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
 
+      - name: Set up environment variables
+        run: |
+          set -a
+          source deploy/env.dev
+          set +a
+
+      - name: Generate app.yaml from app.template.yml
+        run: |
+          envsubst < deploy/app.template.yml > app.yaml
+          ls -l app.yml  # Vérifie que le fichier est bien généré
+
+      - name: Authenticate to Google Cloud
+        env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+          gcloud config set app/cloud_build_timeout 1200
+
+      - name: Deploy to App Engine
+        run: |
+          gcloud app deploy app.yml --quiet
