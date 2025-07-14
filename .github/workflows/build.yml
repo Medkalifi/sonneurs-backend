@@ -68,11 +68,19 @@ jobs:
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
           docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend .
           docker push us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend
+      - name: Set up environment variables
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+        run: |
+          set -a
+          source deploy/env.dev
+          export DB_PASSWORD="$DB_PASSWORD"
+          set +a
 
-      - name: Générer le fichier app.yml depuis le template
+      - name: Generate app.yml from app.template.yml
         run: |
           envsubst < deploy/app.template.yml > app.yml
-          cat app.yml  # pour debug si nécessaire
+          cat app.yml
 
       - name: Deploy to App Engine
         run: |
