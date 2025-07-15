@@ -71,7 +71,21 @@ jobs:
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
           docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend .
           docker push us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend
-          
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy springboot-backend \
+            --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
+            --platform=managed \
+            --region=us-central1 \
+            --allow-unauthenticated \
+            --timeout=600s \
+            --set-env-vars DB_NAME=sonneursdb \
+            --set-env-vars DB_USERNAME=svc-app-son-user \
+            --set-env-vars DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
+            --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres     
+
+
+     
       - name: Generate app.yml from app.template.yml
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD_DEV }}
