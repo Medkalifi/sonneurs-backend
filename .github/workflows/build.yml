@@ -49,6 +49,9 @@ jobs:
 
       - name: Generate fat jar
         run: mvn clean package spring-boot:repackage -DskipTests=true
+        
+      - name: Rename JAR to app.jar
+        run: mv target/*.jar target/app.jar
 
       - name: Authenticate to Google Cloud
         env:
@@ -92,7 +95,9 @@ jobs:
           echo "DB_PASSWORD=$DB_PASSWORD"  # pour debug (temporairement)
           echo "DB_USER=$DB_USERNAME"  # pour debug (temporairement)
       
-
+      - name: List contents before deploy
+        run: ls -lh target && ls -lh . && cat app.yml
+        
       - name: Deploy to App Engine
         run: |
           gcloud app deploy app.yml --quiet
