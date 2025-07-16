@@ -20,7 +20,7 @@ on:
           - gke
 
 env:
-  # Variables communes (ajoute ici ce qui est commun)
+  # Variables communes 
   GCP_PROJECT: sonneurs-juvi-dev
   REGION: us-central1
   IMAGE_NAME: us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
