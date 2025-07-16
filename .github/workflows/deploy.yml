@@ -19,17 +19,70 @@ on:
           - vm
           - gke
 
-jobs:
-  trigger-deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Appel du workflow de déploiement ciblé
-        uses: peter-evans/workflow-dispatch@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
-          workflow: deploy-${{ github.event.inputs.target }}.yml
-          ref: main
-          inputs: |
-            environment: ${{ github.event.inputs.environment }}
+env:
+  # Variables communes (ajoute ici ce qui est commun)
+  GCP_PROJECT: sonneurs-juvi-dev
+  REGION: us-central1
+  IMAGE_NAME: us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
 
+jobs:
+  deploy-cloudrun:
+    if: ${{ github.event.inputs.target == 'cloudrun' }}
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - name: Authentification GCP
+        run: |
+          echo "${{ secrets.GCP_CREDENTIALS }}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+          gcloud config set run/region $REGION
+      - name: Déployer sur Cloud Run
+        run: |
+          gcloud run deploy springboot-backend \
+            --image=$IMAGE_NAME \
+            --platform=managed \
+            --region=$REGION \
+            --allow-unauthenticated \
+            --timeout=600s \
+            --set-env-vars DB_NAME=sonneursdb \
+            --set-env-vars DB_USERNAME=svc-app-son-user \
+            --set-env-vars DB_PASSWORD=$DB_PASSWORD \
+            --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
+
+  deploy-vm:
+    if: ${{ github.event.inputs.target == 'vm' }}
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - name: Authentification GCP
+        run: |
+          echo "${{ secrets.GCP_CREDENTIALS }}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+      - name: Déployer sur VM
+        run: |
+          # Exemple de script SSH + déploiement (à adapter)
+          gcloud compute ssh vm-sonneurs-dev --command "
+            cd /home/chaib_ahmed_1932/app &&
+            ./deploy.sh $DB_PASSWORD
+          "
+
+  deploy-gke:
+    if: ${{ github.event.inputs.target == 'gke' }}
+    runs-on: ubuntu-latest
+    env:
+      DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+    steps:
+      - name: Authentification GCP
+        run: |
+          echo "${{ secrets.GCP_CREDENTIALS }}" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+      - name: Déployer sur GKE
+        run: |
+          # Exemple de commande kubectl (à adapter selon ton cluster et manifest)
+          gcloud container clusters get-credentials sonneurs-cluster --zone us-central1-a --project $GCP_PROJECT
+          kubectl apply -f k8s/deployment.yaml
