@@ -10,29 +10,33 @@ jobs:
   build:
     runs-on: ubuntu-latest
     env:
-      ENV_FILE: deploy/env.dev  
+      ENV_FILE: deploy/env.dev
 
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Set up JDK
+      - name: Setup Java
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Cache Maven
+      - name: Cache Maven dependencies
         uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
-      - name: Charger les variables d’environnement
+      - name: Load environment variables from $ENV_FILE
         id: load-env
         run: |
           set -a
-          source $ENV_FILE
+          if [ -f "$ENV_FILE" ]; then
+            source "$ENV_FILE"
+          else
+            echo "Fichier $ENV_FILE introuvable"; exit 1
+          fi
           set +a
           echo "GCP_PROJECT=$GCP_PROJECT" >> $GITHUB_ENV
           echo "GCS_BUCKET=$GCS_BUCKET" >> $GITHUB_ENV
@@ -43,22 +47,20 @@ jobs:
           mvn clean package spring-boot:repackage -DskipTests=true
           mv target/*.jar target/app.jar
 
-      - name: Upload to GCS
+      - name: Authenticate to GCP
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
           echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project $GCP_PROJECT
+
+      - name: Upload to GCS
+        run: |
           gsutil cp target/app.jar gs://$GCS_BUCKET/jars/
 
-      - name: Authenticate to GCP and configure Docker
-        env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+      - name: Configure Docker to use Artifact Registry
         run: |
-          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
-          gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project $GCP_PROJECT
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build Docker image
