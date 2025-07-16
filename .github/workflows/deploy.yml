@@ -8,6 +8,7 @@ on:
         required: true
         type: choice
         options: [dev, prod]
+
       target:
         description: 'Cible de déploiement'
         required: true
@@ -18,12 +19,12 @@ jobs:
   trigger-deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Appel du workflow de déploiement ciblé
+      - name: Déclenchement du workflow spécifique
         uses: peter-evans/workflow-dispatch@v1
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          workflow: deploy-${{ github.event.inputs.target }}.yml
           ref: main
+          workflow: deploy-${{ github.event.inputs.target }}.yml
           inputs: 
             environment: ${{ github.event.inputs.environment }}
