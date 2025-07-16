@@ -1,34 +1,29 @@
-name: Deploy to Cloud Run
+name: Deploy Backend
 
 on:
-  repository_dispatch:
-    types: [deploy-cloudrun]
-
-env:
-  GCP_PROJECT: sonneurs-juvi-dev
-  REGION: us-central1
-  SERVICE_NAME: springboot-backend
-  GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environnement cible'
+        required: true
+        type: choice
+        options: [dev, prod]
+      target:
+        description: 'Cible de déploiement'
+        required: true
+        type: choice
+        options: [cloudrun, vm, gke]
 
 jobs:
-  deploy:
+  trigger-deploy:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repo (optional, if needed)
-        uses: actions/checkout@v4
-
-      - name: Authenticate to Google Cloud
-        run: |
-          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
-          gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project $GCP_PROJECT
-
-      - name: Deploy to Cloud Run
-        run: |
-          echo "Deploying image: ${{ github.event.client_payload.image_uri }}"
-          gcloud run deploy $SERVICE_NAME \
-            --image=${{ github.event.client_payload.image_uri }} \
-            --platform=managed \
-            --region=$REGION \
-            --allow-unauthenticated
+      - name: Appel du workflow de déploiement ciblé
+        uses: peter-evans/workflow-dispatch@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          workflow: deploy-${{ github.event.inputs.target }}.yml
+          ref: main
+          inputs: 
+            environment: ${{ github.event.inputs.environment }}

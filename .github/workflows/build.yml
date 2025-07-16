@@ -1,117 +1,40 @@
-name: Build and Deploy Backend
+name: Build Backend
 
 on:
   push:
-    branches:
-      - main
-      - moha-sonneur1
+    branches: [ main, moha-sonneur1 ]
   pull_request:
-    branches:
-      - main
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      - name: Charger les variables d’environnement
-        id: load-env
-        run: |
-          set -a
-          source deploy/env.dev
-          set +a
-          echo "GCP_PROJECT=$GCP_PROJECT" >> $GITHUB_ENV
-          echo "DB_NAME=$DB_NAME" >> $GITHUB_ENV
-          echo "DB_USERNAME=$DB_USERNAME" >> $GITHUB_ENV
-          echo "INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME" >> $GITHUB_ENV
-          echo "ENVIRONMENT=$ENVIRONMENT" >> $GITHUB_ENV
-          echo "GCS_BUCKET=$GCS_BUCKET" >> $GITHUB_ENV
-
-      - name: Cache Maven dependencies
+      - name: Cache Maven
         uses: actions/cache@v4
         with:
           path: ~/.m2
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
-          restore-keys: |
-            ${{ runner.os }}-maven
 
-      - name: Build with Maven
-        run: mvn clean install -DskipTests=true
+      - name: Build JAR
+        run: |
+          mvn clean package spring-boot:repackage -DskipTests=true
+          mv target/*.jar target/app.jar
 
-      - name: Generate fat jar
-        run: mvn clean package spring-boot:repackage -DskipTests=true
-        
-      - name: Rename JAR to app.jar
-        run: mv target/*.jar target/app.jar
-
-      - name: Authenticate to Google Cloud
+      - name: Upload to GCS
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
-          echo "${GCP_CREDENTIALS}" | base64 --decode > gcp-key.json
+          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project "$GCP_PROJECT"
-          gcloud config set app/cloud_build_timeout 1200
-
-      - name: Upload jar to GCS
-        run: |
-          gsutil cp target/*.jar gs://$GCS_BUCKET/jars/
-
-      - name: Build & Push Docker Image
-        run: |
-          gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-          docker build -t us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend .
-          docker push us-central1-docker.pkg.dev/$GCP_PROJECT/backend-repo/springboot-backend
-      - name: Deploy to Cloud Run
-        run: |
-          gcloud run deploy springboot-backend \
-            --image=us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend \
-            --platform=managed \
-            --region=us-central1 \
-            --allow-unauthenticated \
-            --timeout=600s \
-            --set-env-vars DB_NAME=sonneursdb \
-            --set-env-vars DB_USERNAME=svc-app-son-user \
-            --set-env-vars DB_PASSWORD=${{ secrets.DB_PASSWORD }} \
-            --set-env-vars INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres     
-
-
-     
-      # - name: Generate app.yml from app.template.yml
-        # env:
-          # DB_PASSWORD: ${{ secrets.DB_PASSWORD_DEV }}
-          # ENVIRONMENT: ${{ env.ENVIRONMENT }}
-          # DB_NAME: ${{ env.DB_NAME }}
-          # DB_USERNAME: ${{ env.DB_USERNAME }}
-          # INSTANCE_CONNECTION_NAME: ${{ env.INSTANCE_CONNECTION_NAME }}
-          # GCS_BUCKET: ${{ env.GCS_BUCKET }}
-        # run: |
-          # set -a
-          # export DB_PASSWORD
-          # export ENVIRONMENT
-          # export DB_NAME
-          # export DB_USERNAME
-          # export INSTANCE_CONNECTION_NAME
-          # export GCS_BUCKET
-      
-          # envsubst < deploy/app.template.yml > app.yml
-          # echo "---- app.yml generated ----"
-          # cat app.yml
-          # echo "DB_PASSWORD=$DB_PASSWORD"  # pour debug (temporairement)
-          # echo "DB_USER=$DB_USERNAME"  # pour debug (temporairement)
-      
-      # - name: List contents before deploy
-        # run: ls -lh target && ls -lh . && cat app.yml
-        
-      # - name: Deploy to App Engine
-        # run: |
-          # gcloud app deploy app.yml --quiet
+          gcloud config set project sonneurs-juvi-dev
+          gsutil cp target/app.jar gs://sonneurs-docs-2025/jars/
