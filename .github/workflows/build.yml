@@ -9,6 +9,9 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      ENV_FILE: deploy/env.dev  
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +28,16 @@ jobs:
           path: ~/.m2
           key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
 
+      - name: Charger les variables d’environnement
+        id: load-env
+        run: |
+          set -a
+          source $ENV_FILE
+          set +a
+          echo "GCP_PROJECT=$GCP_PROJECT" >> $GITHUB_ENV
+          echo "GCS_BUCKET=$GCS_BUCKET" >> $GITHUB_ENV
+          echo "DOCKER_IMAGE=$DOCKER_IMAGE" >> $GITHUB_ENV
+
       - name: Build JAR
         run: |
           mvn clean package spring-boot:repackage -DskipTests=true
@@ -36,8 +49,8 @@ jobs:
         run: |
           echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project sonneurs-juvi-dev
-          gsutil cp target/app.jar gs://sonneurs-docs-2025/jars/
+          gcloud config set project $GCP_PROJECT
+          gsutil cp target/app.jar gs://$GCS_BUCKET/jars/
 
       - name: Authenticate to GCP and configure Docker
         env:
@@ -45,13 +58,13 @@ jobs:
         run: |
           echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
-          gcloud config set project sonneurs-juvi-dev
+          gcloud config set project $GCP_PROJECT
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
 
       - name: Build Docker image
         run: |
-          docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
+          docker build -t $DOCKER_IMAGE .
 
       - name: Push Docker image
         run: |
-          docker push us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
+          docker push $DOCKER_IMAGE
