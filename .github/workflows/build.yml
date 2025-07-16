@@ -38,8 +38,8 @@ jobs:
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project sonneurs-juvi-dev
           gsutil cp target/app.jar gs://sonneurs-docs-2025/jars/
-          
-      - name: Authentification GCP
+
+      - name: Authenticate to GCP and configure Docker
         env:
           GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
         run: |
@@ -47,11 +47,11 @@ jobs:
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project sonneurs-juvi-dev
           gcloud auth configure-docker us-central1-docker.pkg.dev --quiet
-        
+
       - name: Build Docker image
-              run: |
-                docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
-      
+        run: |
+          docker build -t us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend .
+
       - name: Push Docker image
         run: |
           docker push us-central1-docker.pkg.dev/sonneurs-juvi-dev/backend-repo/springboot-backend
