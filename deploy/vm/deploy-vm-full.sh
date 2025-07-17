@@ -59,6 +59,12 @@ EOF
 gcloud compute scp "$SERVICE_NAME" "$USER_NAME@$VM_NAME:/tmp/$SERVICE_NAME" --zone="$ZONE"
 
 echo ">>> [5] Configuration systemd + téléchargement du JAR"
+
+echo "#######################################################
+echo "GCS_BUCKET=$GCS_BUCKET"
+echo "JAR_GCS_PATH=$JAR_GCS_PATH"
+echo "#######################################################
+
 gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command "
   sudo mv /tmp/$SERVICE_NAME /etc/systemd/system/$SERVICE_NAME &&
   sudo chmod 644 /etc/systemd/system/$SERVICE_NAME &&
