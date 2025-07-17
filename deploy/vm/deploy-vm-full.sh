@@ -65,18 +65,19 @@ echo "GCS_BUCKET=$GCS_BUCKET"
 echo "JAR_GCS_PATH=$JAR_GCS_PATH"
 echo "#######################################################
 
-gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command "
+gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command '
   echo ">>> [VM] Installation de Java (OpenJDK 17)"  
-  sudo apt update -y  &&
-  sudo apt install -y openjdk-17-jdk  &&
-  sudo mv /tmp/$SERVICE_NAME /etc/systemd/system/$SERVICE_NAME &&
-  sudo chmod 644 /etc/systemd/system/$SERVICE_NAME &&
-  gsutil cp $JAR_GCS_PATH $APP_PATH/$APP_JAR &&
-  chmod +x $APP_PATH/start.sh &&
+  sudo apt update -y &&
+  sudo apt install -y openjdk-17-jdk &&
+  sudo mv /tmp/'"$SERVICE_NAME"' /etc/systemd/system/'"$SERVICE_NAME"' &&
+  sudo chmod 644 /etc/systemd/system/'"$SERVICE_NAME"' &&
+  gsutil cp '"$JAR_GCS_PATH"' '"$APP_PATH/$APP_JAR"' &&
+  chmod +x '"$APP_PATH"'/start.sh &&
   sudo systemctl daemon-reload &&
-  sudo systemctl enable $SERVICE_NAME &&
-  sudo systemctl restart $SERVICE_NAME
-"
+  sudo systemctl enable '"$SERVICE_NAME"' &&
+  sudo systemctl restart '"$SERVICE_NAME"'
+'
+
 
 rm "$SERVICE_NAME"
 echo ">>> ✅ Déploiement terminé avec succès"
