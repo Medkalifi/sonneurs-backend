@@ -84,7 +84,7 @@ jobs:
           gcloud config set project $GCP_PROJECT
       
           chmod +x deploy/vm/deploy-vm-full.sh
-          ./deploy/vm/deploy-vm-full.sh "$GCP_PROJECT" "$REGION-a" "vm-sonneurs-${{ github.event.inputs.environment }}" "$VM_USER" "$GCS_BUCKET" "$DB_PASSWORD"
+          ./deploy/vm/deploy-vm-full.sh "$GCP_PROJECT" "$REGION-a" "vm-sonneurs-juvi-${{ github.event.inputs.environment }}" "$VM_USER" "$GCS_BUCKET" "$DB_PASSWORD"
       
             
       

@@ -38,7 +38,6 @@ gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command "
 
 echo ">>> [4] Copie des fichiers"
 gcloud compute scp deploy/vm/start.sh "$USER_NAME@$VM_NAME:$APP_PATH" --zone="$ZONE"
-gcloud compute scp deploy/vm/env.vm "$USER_NAME@$VM_NAME:$APP_PATH" --zone="$ZONE"
 
 cat <<EOF > "$SERVICE_NAME"
 [Unit]
