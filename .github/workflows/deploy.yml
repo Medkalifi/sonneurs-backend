@@ -95,6 +95,7 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
+          
       
           kubectl create secret generic springboot-secret \
             --from-literal=DB_NAME=$DB_NAME \
@@ -102,7 +103,8 @@ jobs:
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
             --from-literal=INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME \
             --dry-run=client -o yaml | kubectl apply -f -
-      
+          # Configure kubectl pour utiliser le plugin gke-gcloud-auth-plugin explicitement
+          kubectl config set-credentials $(kubectl config view -o jsonpath='{.users[0].name}') --exec-command=gke-gcloud-auth-plugin
           kubectl apply -f deploy/k8s/deployment.yml
           kubectl apply -f deploy/k8s/service.yml
       
