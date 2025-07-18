@@ -15,21 +15,24 @@ SERVICE_NAME="sonneurs.service"
 JAR_GCS_PATH="gs://$GCS_BUCKET/jars/$APP_JAR"
 
 echo ">>> [1] Création de la VM si elle n'existe pas..."
-gcloud compute instances list --filter="name=($VM_NAME)" --project="$PROJECT_ID" | grep "$VM_NAME" || \
-gcloud compute instances create "$VM_NAME" \
-  --project="$PROJECT_ID" \
-  --zone="$ZONE" \
-  --machine-type=e2-micro \
-  --image-family=debian-12 \
-  --image-project=debian-cloud \
-  --boot-disk-size=10GB \
-  --tags=http-server \
-  --metadata=enable-osconfig=TRUE \
-  --scopes=https://www.googleapis.com/auth/cloud-platform \
-  --quiet
+if ! gcloud compute instances describe "$VM_NAME" --zone="$ZONE" --project="$PROJECT_ID" &> /dev/null; then
+  gcloud compute instances create "$VM_NAME" \
+    --project="$PROJECT_ID" \
+    --zone="$ZONE" \
+    --machine-type=e2-micro \
+    --image-family=debian-12 \
+    --image-project=debian-cloud \
+    --boot-disk-size=10GB \
+    --tags=http-server \
+    --metadata=enable-osconfig=TRUE \
+    --scopes=https://www.googleapis.com/auth/cloud-platform \
+    --quiet
+else
+  echo ">>> VM $VM_NAME déjà existante, on ne la recrée pas."
+fi
 
 echo ">>> [2] Attente que la VM soit prête..."
-sleep 30
+sleep 20
 
 echo ">>> [3] Préparation de la VM..."
 gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command "
@@ -58,17 +61,40 @@ EOF
 
 gcloud compute scp "$SERVICE_NAME" "$USER_NAME@$VM_NAME:/tmp/$SERVICE_NAME" --zone="$ZONE"
 
-echo ">>> [5] Configuration systemd + téléchargement du JAR"
-
-echo "#######################################################
-echo "GCS_BUCKET=$GCS_BUCKET"
-echo "JAR_GCS_PATH=$JAR_GCS_PATH"
-echo "#######################################################
-
+echo ">>> [5] Configuration systemd, Java, Nginx + téléchargement du JAR"
 gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command '
-  echo ">>> [VM] Installation de Java (OpenJDK 17)"  
+  echo ">>> [VM] Installation de Java + Nginx"  
   sudo apt update -y &&
-  sudo apt install -y openjdk-17-jdk &&
+  sudo apt install -y openjdk-17-jdk nginx &&
+
+  echo ">>> Configuration Nginx"
+  echo "server {
+    listen 80;
+    server_name _;
+
+    location / {
+      proxy_pass http://localhost:8080;
+      proxy_set_header Host \$host;
+      proxy_set_header X-Real-IP \$remote_addr;
+    }
+  }" | sudo tee /etc/nginx/sites-available/sonneurs > /dev/null &&
+  sudo ln -sf /etc/nginx/sites-available/sonneurs /etc/nginx/sites-enabled/sonneurs &&
+  sudo nginx -t &&
+  sudo systemctl restart nginx &&
+
+  echo ">>> Configuration systemd"
+  
+          echo "GCP_PROJECT=$GCP_PROJECT" 
+          echo "REGION=$REGION" 
+          echo "GCS_BUCKET=$GCS_BUCKET" 
+          echo "DOCKER_IMAGE=$DOCKER_IMAGE" 
+          echo "DB_NAME=$DB_NAME" 
+          echo "DB_USERNAME=$DB_USERNAME"
+          echo "INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME" 
+          echo "VM_NAME=$VM_NAME" 
+          echo "VM_USER=$VM_USER" 
+          echo "VM_APP_PATH=$VM_APP_PATH" 
+  
   sudo mv /tmp/'"$SERVICE_NAME"' /etc/systemd/system/'"$SERVICE_NAME"' &&
   sudo chmod 644 /etc/systemd/system/'"$SERVICE_NAME"' &&
   gsutil cp '"$JAR_GCS_PATH"' '"$APP_PATH/$APP_JAR"' &&
@@ -77,7 +103,6 @@ gcloud compute ssh "$USER_NAME@$VM_NAME" --zone="$ZONE" --command '
   sudo systemctl enable '"$SERVICE_NAME"' &&
   sudo systemctl restart '"$SERVICE_NAME"'
 '
-
 
 rm "$SERVICE_NAME"
 echo ">>> ✅ Déploiement terminé avec succès"
