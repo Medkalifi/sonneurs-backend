@@ -123,7 +123,7 @@ jobs:
 
       - name: Récupérer les credentials du cluster GKE
         run: |
-          gcloud container clusters get-credentials cluser-gke-***-dev --region=$REGION --project=$GCP_PROJECT
+          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
 
       - name: Créer le secret Kubernetes avec les infos DB
         env:
