@@ -90,7 +90,10 @@ jobs:
       
 # partie GKE      
       
-      - name: Installer gke-gcloud-auth-plugin avec détection d’architecture
+      - name: Debug architecture
+        run: uname -m
+
+      - name: Installer gke-gcloud-auth-plugin avec détection d'architecture
         run: |
           ARCH=$(uname -m)
           if [ "$ARCH" = "x86_64" ]; then
@@ -101,17 +104,28 @@ jobs:
             echo "Architecture $ARCH non supportée"
             exit 1
           fi
-      
-          curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/$ARCH/gke-gcloud-auth-plugin
+
+          RELEASE=$(curl -L -s https://dl.k8s.io/release/stable.txt)
+          echo "Release: $RELEASE"
+
+          curl -LO https://dl.k8s.io/release/$RELEASE/bin/linux/$ARCH/gke-gcloud-auth-plugin
           chmod +x gke-gcloud-auth-plugin
           sudo mv gke-gcloud-auth-plugin /usr/local/bin/
 
-      
-      - name: Récupérer les credentials du cluster
+      - name: Vérifier gke-gcloud-auth-plugin
         run: |
-          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
-      
-      - name: Créer secret K8s et déployer les manifests
+          ls -l /usr/local/bin/gke-gcloud-auth-plugin
+          file /usr/local/bin/gke-gcloud-auth-plugin
+
+      - name: Installer gke-gcloud-auth-plugin via gcloud si besoin
+        run: |
+          gcloud components install gke-gcloud-auth-plugin --quiet || echo "Déjà installé ou erreur"
+
+      - name: Récupérer les credentials du cluster GKE
+        run: |
+          gcloud container clusters get-credentials cluser-gke-***-dev --region=$REGION --project=$GCP_PROJECT
+
+      - name: Créer le secret Kubernetes avec les infos DB
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
@@ -121,8 +135,11 @@ jobs:
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
             --from-literal=INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME \
             --dry-run=client -o yaml | kubectl apply -f -
-      
+
+      - name: Appliquer les manifests Kubernetes
+        run: |
           kubectl apply -f deploy/k8s/deployment.yml
           kubectl apply -f deploy/k8s/service.yml
+
       
             
