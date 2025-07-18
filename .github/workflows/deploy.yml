@@ -90,11 +90,22 @@ jobs:
       
 # partie GKE      
       
-      - name: Installer gke-gcloud-auth-plugin
+      - name: Installer gke-gcloud-auth-plugin avec détection d’architecture
         run: |
-          curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/gke-gcloud-auth-plugin
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            ARCH="amd64"
+          elif [ "$ARCH" = "aarch64" ]; then
+            ARCH="arm64"
+          else
+            echo "Architecture $ARCH non supportée"
+            exit 1
+          fi
+      
+          curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/$ARCH/gke-gcloud-auth-plugin
           chmod +x gke-gcloud-auth-plugin
           sudo mv gke-gcloud-auth-plugin /usr/local/bin/
+
       
       - name: Récupérer les credentials du cluster
         run: |
