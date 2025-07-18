@@ -87,24 +87,31 @@ jobs:
           chmod +x deploy/vm/deploy-vm-full.sh
           ./deploy/vm/deploy-vm-full.sh "$GCP_PROJECT" "$REGION-a" "vm-sonneurs-juvi-${{ github.event.inputs.environment }}" "$VM_USER" "$GCS_BUCKET" "$DB_PASSWORD"
       
-            
       
-      - name: Déploiement GKE
-        if: ${{ github.event.inputs.target == 'gke' }}
+# partie GKE      
+      
+      - name: Installer gke-gcloud-auth-plugin
+        run: |
+          curl -LO https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/gke-gcloud-auth-plugin
+          chmod +x gke-gcloud-auth-plugin
+          sudo mv gke-gcloud-auth-plugin /usr/local/bin/
+      
+      - name: Récupérer les credentials du cluster
+        run: |
+          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
+      
+      - name: Créer secret K8s et déployer les manifests
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
-          
-      
           kubectl create secret generic springboot-secret \
             --from-literal=DB_NAME=$DB_NAME \
             --from-literal=DB_USERNAME=$DB_USERNAME \
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
             --from-literal=INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME \
             --dry-run=client -o yaml | kubectl apply -f -
-          # Configure kubectl pour utiliser le plugin gke-gcloud-auth-plugin explicitement
-          kubectl config set-credentials $(kubectl config view -o jsonpath='{.users[0].name}') --exec-command=gke-gcloud-auth-plugin
+      
           kubectl apply -f deploy/k8s/deployment.yml
           kubectl apply -f deploy/k8s/service.yml
       
+            
