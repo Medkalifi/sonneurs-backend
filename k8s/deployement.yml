@@ -14,7 +14,8 @@ spec:
     spec:
       containers:
         - name: springboot-app
-          image: $DOCKER_IMAGE  # injecté par GitHub Actions (ex : us-central1-docker.pkg.dev/mon-projet/backend/springboot-app:latest)
+          image: $DOCKER_IMAGE
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
@@ -38,3 +39,15 @@ spec:
                 secretKeyRef:
                   name: springboot-secret
                   key: INSTANCE_CONNECTION_NAME
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 10
