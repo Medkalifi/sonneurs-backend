@@ -92,8 +92,30 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
-          sudo apt-get update
-          sudo apt-get install -y google-cloud-cli-gke-gcloud-auth-plugin
+          # Détection de l'architecture
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "x86_64" ]; then
+            ARCH="amd64"
+          elif [ "$ARCH" = "aarch64" ]; then
+            ARCH="arm64"
+          else
+            echo "Architecture $ARCH non supportée"
+            exit 1
+          fi
+
+          # Télécharger et installer le plugin gke-gcloud-auth-plugin
+          RELEASE=$(curl -sSL https://dl.k8s.io/release/stable.txt)
+          curl -LO "https://dl.k8s.io/release/${RELEASE}/bin/linux/${ARCH}/gke-gcloud-auth-plugin"
+          chmod +x gke-gcloud-auth-plugin
+          sudo mv gke-gcloud-auth-plugin /usr/local/bin/
+
+          # Configurer gcloud pour utiliser le plugin
+          gcloud config set container/use_application_default_credentials true
+
+          # Authentification
+          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
 
           # Récupérer les credentials du cluster GKE
           gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
@@ -109,6 +131,7 @@ jobs:
           # Appliquer les manifests Kubernetes
           kubectl apply -f deploy/k8s/deployment.yml
           kubectl apply -f deploy/k8s/service.yml
+
 
 
       
