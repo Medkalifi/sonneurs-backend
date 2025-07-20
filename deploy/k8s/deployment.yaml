@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: springboot-app
+  namespace: dev
 spec:
   replicas: 1
   selector:
@@ -37,17 +38,20 @@ spec:
               key: DB_PASSWORD
         ports:
         - containerPort: 8080
+
       - name: cloud-sql-proxy
-        image: gcr.io/cloudsql-docker/gce-proxy:1.40.0
+        image: gcr.io/cloudsql-docker/gce-proxy:1.37.5-bullseye
+
         command:
           - "/cloud_sql_proxy"
-          - "-instances=sonneurs-juvi-dev:us-central1:instance-postgres=tcp:5432"
+          - "-instances=sonneurs-juvi-dev:us-central1:instance-postgres=tcp:0.0.0.0:5432"
           - "-credential_file=/secrets/cloudsql/credentials.json"
         volumeMounts:
-          - name: cloudsql-instance-credentials
-            mountPath: /secrets/cloudsql
-            readOnly: true
-      volumes:
         - name: cloudsql-instance-credentials
-          secret:
-            secretName: springboot-service-account-key
+          mountPath: /secrets/cloudsql
+          readOnly: true
+
+      volumes:
+      - name: cloudsql-instance-credentials
+        secret:
+          secretName: springboot-service-account-key
