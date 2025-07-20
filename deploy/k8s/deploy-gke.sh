@@ -1,53 +1,58 @@
 #!/bin/bash
-set -e
 
-#  Chargement des variables d'environnement (hors mot de passe)
-if [[ -f .env.dev ]]; then
-  echo " Chargement des variables depuis .env.dev"
-  export $(grep -v '^#' .env.dev | xargs)
-else
-  echo "❌ Fichier .env.dev non trouvé"
+set -euo pipefail
+
+ENV_FILE="deploy/env.dev"
+NAMESPACE="dev"
+DEPLOYMENT_NAME="springboot-app"
+SERVICE_NAME="springboot-service"
+SECRET_NAME="springboot-secret"
+SA_SECRET_NAME="springboot-service-account-key"
+KEY_FILE="/tmp/gcp-key.json"
+
+echo "📄 Lecture des variables d'environnement depuis $ENV_FILE..."
+if [[ ! -f "$ENV_FILE" ]]; then
+  echo "❌ Fichier $ENV_FILE introuvable."
   exit 1
 fi
 
-# 📌 Vérification du mot de passe fourni en variable d'environnement
-: "${DB_PASSWORD:? La variable DB_PASSWORD doit être définie (export DB_PASSWORD=...)}"
+# Charge les variables du fichier
+set -a
+source "$ENV_FILE"
+set +a
 
-# 📌 Récupération infos projet
-PROJECT_ID=$(gcloud config get-value project)
-PROJECT_NUMBER=$(gcloud projects describe "$PROJECT_ID" --format="value(projectNumber)")
-GKE_NODE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+# S'assurer que DB_PASSWORD est présent
+if [[ -z "${DB_PASSWORD:-}" ]]; then
+  echo "❌ La variable DB_PASSWORD doit être fournie dans l'environnement."
+  exit 1
+fi
 
-echo " Attribution du rôle Artifact Registry Reader à $GKE_NODE_SA"
-gcloud projects add-iam-policy-binding "$PROJECT_ID" \
-  --member="serviceAccount:$GKE_NODE_SA" \
-  --role="roles/artifactregistry.reader" \
-  --quiet
+# Clé de service obligatoire pour créer le secret
+if [[ ! -f "$KEY_FILE" ]]; then
+  echo "❌ Fichier de clé de service GCP introuvable à $KEY_FILE"
+  exit 1
+fi
 
-#  Suppression des ressources existantes
-echo " Suppression ancienne configuration (si existante)..."
-kubectl delete deployment springboot-app -n dev --ignore-not-found
-kubectl delete service springboot-service -n dev --ignore-not-found
-kubectl delete secret springboot-secret -n dev --ignore-not-found
-kubectl delete secret springboot-service-account-key -n dev --ignore-not-found
+echo "🧹 Suppression des ressources Kubernetes existantes (si elles existent)..."
+kubectl delete deployment $DEPLOYMENT_NAME -n $NAMESPACE --ignore-not-found
+kubectl delete svc $SERVICE_NAME -n $NAMESPACE --ignore-not-found
+kubectl delete secret $SECRET_NAME -n $NAMESPACE --ignore-not-found
+kubectl delete secret $SA_SECRET_NAME -n $NAMESPACE --ignore-not-found
 
-#  Création des secrets Kubernetes
-echo " Création du secret app (DB credentials + instance)"
-kubectl create secret generic springboot-secret \
+echo "🔐 Création des secrets Kubernetes..."
+kubectl create secret generic $SECRET_NAME \
   --from-literal=DB_NAME="$DB_NAME" \
   --from-literal=DB_USERNAME="$DB_USERNAME" \
   --from-literal=DB_PASSWORD="$DB_PASSWORD" \
   --from-literal=INSTANCE_CONNECTION_NAME="$INSTANCE_CONNECTION_NAME" \
-  -n dev
+  -n $NAMESPACE
 
-echo " Clé de service pour Cloud SQL Proxy"
-kubectl create secret generic springboot-service-account-key \
-  --from-file=credentials.json="$GOOGLE_APPLICATION_CREDENTIALS" \
-  -n dev
+kubectl create secret generic $SA_SECRET_NAME \
+  --from-file=credentials.json="$KEY_FILE" \
+  -n $NAMESPACE
 
-# 🚀 Déploiement
-echo " Déploiement de l'application Spring Boot sur GKE..."
-kubectl apply -f deploy/k8s/deployment.yaml -n dev
-kubectl apply -f /deploy/k8s/service.yaml -n dev
+echo "🚀 Déploiement des manifests Kubernetes..."
+kubectl apply -f deploy/k8s/deployment.yml -n $NAMESPACE
+kubectl apply -f deploy/k8s/service.yml -n $NAMESPACE
 
-echo "✅ Déploiement terminé !"
+echo "✅ Déploiement terminé avec succès."
