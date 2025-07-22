@@ -74,32 +74,48 @@ jobs:
             --timeout=600s \
             --set-env-vars DB_NAME=$DB_NAME,DB_USERNAME=$DB_USERNAME,DB_PASSWORD=$DB_PASSWORD,INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME
 
-      - name: 🔁 Nettoyage du déploiement existant (si présent)
-        continue-on-error: true
-        run: |
-          kubectl delete deployment springboot-app -n dev || true
-          kubectl delete svc springboot-service -n dev || true
-          kubectl delete secret springboot-secret -n dev || true
-          kubectl delete secret springboot-service-account-key -n dev || true
-
-      - name: 🔐 Créer les secrets Kubernetes
+      - name: Création + déploiement VM
+        if: ${{ github.event.inputs.target == 'vm' }}
         env:
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+      
+          chmod +x deploy/vm/deploy-vm-full.sh
+          ./deploy/vm/deploy-vm-full.sh "$GCP_PROJECT" "$REGION-a" "vm-sonneurs-juvi-${{ github.event.inputs.environment }}" "$VM_USER" "$GCS_BUCKET" "$DB_PASSWORD"
+      
+
+      - name: Déploiement GKE
+        if: ${{ github.event.inputs.target == 'gke' }}
+        env:
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
+        run: |
+          echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
+          gcloud auth activate-service-account --key-file=gcp-key.json
+          gcloud config set project $GCP_PROJECT
+          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
+
+          # Créer le namespace s'il n'existe pas
+          kubectl get namespace dev || kubectl create namespace dev
+
+          # Créer les secrets dans Kubernetes
+          kubectl delete secret springboot-secret --ignore-not-found -n dev
+          kubectl delete secret springboot-service-account-key --ignore-not-found -n dev
+
           kubectl create secret generic springboot-secret \
             --from-literal=DB_NAME=$DB_NAME \
             --from-literal=DB_USERNAME=$DB_USERNAME \
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
-            --from-literal=INSTANCE_CONNECTION_NAME=$INSTANCE_CONNECTION_NAME \
             -n dev
 
-          echo "$GCP_CREDENTIALS" | base64 --decode > /tmp/key.json
           kubectl create secret generic springboot-service-account-key \
-            --from-file=credentials.json=/tmp/key.json \
+            --from-file=credentials.json=gcp-key.json \
             -n dev
 
-      - name: 📦 Appliquer les manifests Kubernetes
-        run: |
-          kubectl apply -f deploy/k8s/deployment.yml -n dev
-          kubectl apply -f deploy/k8s/service.yml -n dev
-
+          # Appliquer les fichiers YAML (déploiement + service)
+          kubectl apply -f k8s/deployment.yaml -n dev
+          kubectl apply -f k8s/service.yaml -n dev
