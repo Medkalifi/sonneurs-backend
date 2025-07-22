@@ -97,25 +97,33 @@ jobs:
           echo "$GCP_CREDENTIALS" | base64 --decode > gcp-key.json
           gcloud auth activate-service-account --key-file=gcp-key.json
           gcloud config set project $GCP_PROJECT
+
+          # ✅ Installer le plugin requis
+          sudo apt-get update
+          sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
+
+          # 🔐 Authentifier kubectl sur GKE
           gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region=$REGION --project=$GCP_PROJECT
 
           # Créer le namespace s'il n'existe pas
           kubectl get namespace dev || kubectl create namespace dev
 
-          # Créer les secrets dans Kubernetes
+          # Supprimer les secrets existants
           kubectl delete secret springboot-secret --ignore-not-found -n dev
           kubectl delete secret springboot-service-account-key --ignore-not-found -n dev
 
+          # Recréer les secrets
           kubectl create secret generic springboot-secret \
-            --from-literal=DB_NAME=$DB_NAME \
-            --from-literal=DB_USERNAME=$DB_USERNAME \
-            --from-literal=DB_PASSWORD=$DB_PASSWORD \
+            --from-literal=DB_NAME=sonneursdb \
+            --from-literal=DB_USERNAME=svc-app-son-user \
+            --from-literal=DB_PASSWORD=sonneurs \
+            --from-literal=INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
             -n dev
 
           kubectl create secret generic springboot-service-account-key \
             --from-file=credentials.json=gcp-key.json \
             -n dev
 
-          # Appliquer les fichiers YAML (déploiement + service)
+          # Appliquer les fichiers Kubernetes
           kubectl apply -f k8s/deployment.yaml -n dev
           kubectl apply -f k8s/service.yaml -n dev
