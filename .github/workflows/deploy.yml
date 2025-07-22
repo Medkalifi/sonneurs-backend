@@ -109,7 +109,6 @@ jobs:
         with:
           cluster_name: ${{ env.GKE_CLUSTER }}
           location: ${{ env.REGION }}
-          credentials: ${{ secrets.GCP_CREDENTIALS }}
 
       - name: Recréation des secrets Kubernetes
         if: ${{ github.event.inputs.target == 'gke' }}
@@ -123,7 +122,6 @@ jobs:
             --from-literal=DB_NAME=$DB_NAME \
             --from-literal=DB_USERNAME=$DB_USERNAME \
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
-           --from-literal=INSTANCE_CONNECTION_NAME=sonneurs-juvi-dev:us-central1:instance-postgres
             -n $GKE_NAMESPACE
 
           echo "$GCP_CREDENTIALS" | base64 --decode > key.json
@@ -138,4 +136,3 @@ jobs:
           kubectl apply -f k8s/service.yaml -n $GKE_NAMESPACE
           kubectl rollout status deployment/$GKE_DEPLOYMENT_NAME -n $GKE_NAMESPACE
           kubectl get svc -n $GKE_NAMESPACE -o wide
-
