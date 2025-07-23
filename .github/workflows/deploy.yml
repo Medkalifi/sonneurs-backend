@@ -98,8 +98,6 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "Authentification au cluster GKE..."
-          echo "Cluster: 
-          echo "Région: $REGION"
       
           gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region us-central1 --project sonneurs-juvi-dev
       
