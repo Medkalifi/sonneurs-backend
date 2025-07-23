@@ -97,19 +97,11 @@ jobs:
         env:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
+          echo "Authentification au cluster GKE..."
+          echo "Cluster: $GKE_CLUSTER_NAME"
+          echo "Région: $REGION"
+      
           gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $REGION
-
-          # Crée le namespace si non existant
-          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
-
-          # Applique le secret DB (DB_NAME, DB_USERNAME, DB_PASSWORD)
-          kubectl delete secret springboot-secret -n dev --ignore-not-found
-          kubectl create secret generic springboot-secret \
-            --from-literal=DB_NAME=$DB_NAME \
-            --from-literal=DB_USERNAME=$DB_USERNAME \
-            --from-literal=DB_PASSWORD=$DB_PASSWORD \
-            -n dev
-
-          # Déploiement de l'app et du service
-          kubectl apply -n dev -f k8s/deployment.yaml
-          kubectl apply -n dev -f k8s/service.yaml
+      
+          kubectl apply -f k8s/deployment.yaml
+          kubectl apply -f k8s/service.yaml
