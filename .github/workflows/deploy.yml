@@ -98,10 +98,10 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "Authentification au cluster GKE..."
-          echo "Cluster: $GKE_CLUSTER_NAME"
+          echo "Cluster: 
           echo "Région: $REGION"
       
-          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $REGION
+          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region us-central1 --project sonneurs-juvi-dev
       
           kubectl apply -f k8s/deployment.yaml
           kubectl apply -f k8s/service.yaml
