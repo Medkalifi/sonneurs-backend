@@ -95,44 +95,21 @@ jobs:
       - name: Déploiement GKE
         if: ${{ github.event.inputs.target == 'gke' }}
         env:
-          GCP_CREDENTIALS: ${{ secrets.GCP_CREDENTIALS }}
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
-        uses: google-github-actions/setup-gcloud@v2
-        with:
-          project_id: ${{ env.GCP_PROJECT }}
-          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
-          export_default_credentials: true
-
-      - name: Authentification GKE
-        if: ${{ github.event.inputs.target == 'gke' }}
-        uses: google-github-actions/get-gke-credentials@v2
-        with:
-          cluster_name: ${{ env.GKE_CLUSTER }}
-          location: ${{ env.REGION }}
-
-      - name: Recréation des secrets Kubernetes
-        if: ${{ github.event.inputs.target == 'gke' }}
         run: |
-          kubectl get namespace $GKE_NAMESPACE || kubectl create namespace $GKE_NAMESPACE
+          gcloud container clusters get-credentials $GKE_CLUSTER_NAME --region $REGION
 
-          kubectl delete secret springboot-secret --ignore-not-found -n $GKE_NAMESPACE
-          kubectl delete secret springboot-service-account-key --ignore-not-found -n $GKE_NAMESPACE
+          # Crée le namespace si non existant
+          kubectl create namespace dev --dry-run=client -o yaml | kubectl apply -f -
 
+          # Applique le secret DB (DB_NAME, DB_USERNAME, DB_PASSWORD)
+          kubectl delete secret springboot-secret -n dev --ignore-not-found
           kubectl create secret generic springboot-secret \
             --from-literal=DB_NAME=$DB_NAME \
             --from-literal=DB_USERNAME=$DB_USERNAME \
             --from-literal=DB_PASSWORD=$DB_PASSWORD \
-            -n $GKE_NAMESPACE
+            -n dev
 
-          echo "$GCP_CREDENTIALS" | base64 --decode > key.json
-          kubectl create secret generic springboot-service-account-key \
-            --from-file=credentials.json=key.json \
-            -n $GKE_NAMESPACE
-
-      - name: Appliquer les fichiers Kubernetes
-        if: ${{ github.event.inputs.target == 'gke' }}
-        run: |
-          kubectl apply -f k8s/deployment.yaml -n $GKE_NAMESPACE
-          kubectl apply -f k8s/service.yaml -n $GKE_NAMESPACE
-          kubectl rollout status deployment/$GKE_DEPLOYMENT_NAME -n $GKE_NAMESPACE
-          kubectl get svc -n $GKE_NAMESPACE -o wide
+          # Déploiement de l'app et du service
+          kubectl apply -n dev -f k8s/deployment.yaml
+          kubectl apply -n dev -f k8s/service.yaml
