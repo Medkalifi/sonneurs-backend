@@ -98,10 +98,8 @@ jobs:
           DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           echo "Authentification au cluster GKE..."
-          echo "Cluster: $GKE_CLUSTER_NAME"
-          echo "Région: $REGION"
       
-          gcloud container clusters get-credentials "$GKE_CLUSTER_NAME" --region "$REGION" --project "$GCP_PROJECT"
+          gcloud container clusters get-credentials cluser-gke-sonneurs-dev --region us-central1 --project sonneurs-juvi-dev
       
           sudo apt-get update && sudo apt-get install -y google-cloud-sdk-gke-gcloud-auth-plugin
           gcloud components install gke-gcloud-auth-plugin
